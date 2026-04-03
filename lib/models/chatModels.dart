@@ -47,7 +47,6 @@ class ChatModel {
     };
   }
 
-  // Copy with method for updating specific fields
   ChatModel copyWith({
     String? id,
     String? userName,

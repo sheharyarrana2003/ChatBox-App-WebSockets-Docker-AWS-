@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:chatbox_app/controllers/profile_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -6,6 +9,7 @@ import '../const/fonts.dart';
 import '../controllers/authController.dart';
 import '../controllers/statusController.dart';
 import '../models/statusModel.dart';
+import '../models/profile_model.dart'; // Add this import
 
 class BaseScreen extends StatelessWidget {
   final Widget child;
@@ -22,7 +26,8 @@ class BaseScreen extends StatelessWidget {
   });
 
   final StatusController statusController = Get.put(StatusController());
-  final AuthController authController = Get.put(AuthController());
+  final AuthController authController = Get.find<AuthController>();
+  final ProfileController profileController = Get.find<ProfileController>();
 
   @override
   Widget build(BuildContext context) {
@@ -41,18 +46,17 @@ class BaseScreen extends StatelessWidget {
 
   Widget _buildHeader() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal:12.w,vertical: 14.h),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
       color: AppColors.blueColor,
       child: SafeArea(
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Search Icon
             Container(
-              padding: EdgeInsets.all(12.w),
+              padding: EdgeInsets.all(8.w),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(15.r),
+                border: Border.all(color: AppColors.navTextColor),
+                borderRadius: BorderRadius.circular(25.r),
               ),
               child: Icon(
                 Icons.search,
@@ -61,7 +65,6 @@ class BaseScreen extends StatelessWidget {
               ),
             ),
 
-            // Title
             Text(
               title,
               style: AppFonts.fBold24.copyWith(
@@ -71,7 +74,6 @@ class BaseScreen extends StatelessWidget {
               ),
             ),
 
-            // Profile Avatar or Icon
             _buildHeaderAction(),
           ],
         ),
@@ -82,6 +84,10 @@ class BaseScreen extends StatelessWidget {
   Widget _buildHeaderAction() {
     if (title == "Home") {
       return Obx(() {
+        // ✅ Get profile from AuthController's savedProfile
+        final profile = authController.savedProfile.value;
+        final tempImage = authController.profileImage.value;
+
         return Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
@@ -90,10 +96,9 @@ class BaseScreen extends StatelessWidget {
           child: CircleAvatar(
             radius: 22.r,
             backgroundColor: Colors.white,
-            backgroundImage: authController.profileImage.value != null
-                ? FileImage(authController.profileImage.value!)
-                : null,
-            child: authController.profileImage.value == null
+            // Priority: 1. Temp image (newly selected), 2. Local file from path, 3. Network URL, 4. Default icon
+            backgroundImage: _getProfileImage(profile, tempImage),
+            child: _getProfileImage(profile, tempImage) == null
                 ? Icon(
               Icons.person,
               color: AppColors.blueColor,
@@ -104,19 +109,48 @@ class BaseScreen extends StatelessWidget {
         );
       });
     } else {
-      return Container(
-        padding: EdgeInsets.all(12.w),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(15.r),
-        ),
-        child: Icon(
-          Icons.more_vert,
-          color: AppColors.whiteColor,
-          size: 24.sp,
-        ),
-      );
+      if (title == "Contacts" || title == "Calls") {
+        return Container(
+          padding: EdgeInsets.all(8.w),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.navTextColor),
+            borderRadius: BorderRadius.circular(25.r),
+          ),
+          child: Icon(
+            title == "Calls" ? Icons.add_call : Icons.perm_contact_cal_rounded,
+            color: AppColors.whiteColor,
+            size: 24.sp,
+          ),
+        );
+      }
+      return const SizedBox.shrink();
     }
+  }
+
+  /// Helper method to get the appropriate profile image
+  ImageProvider? _getProfileImage(Profile? profile, File? tempImage) {
+    // Priority 1: Temporarily selected image (during profile creation/update)
+    if (tempImage != null) {
+      return FileImage(tempImage);
+    }
+
+    // Priority 2: Local file from saved profile path
+    if (profile?.avatarUrl != null && profile!.avatarUrl!.startsWith('file://')) {
+      try {
+        return FileImage(File(profile.avatarUrl!));
+      } catch (e) {
+        print('Error loading local avatar: $e');
+      }
+    }
+
+    // Priority 3: Network URL (from Supabase storage)
+    if (profile?.avatarUrl != null &&
+        (profile!.avatarUrl!.startsWith('http') || profile.avatarUrl!.startsWith('https'))) {
+      return NetworkImage(profile.avatarUrl!);
+    }
+
+    // No valid image source
+    return null;
   }
 
   Widget _buildStatusSection() {
@@ -126,9 +160,8 @@ class BaseScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Status Section Header
           Padding(
-            padding: EdgeInsets.only(right: 20.w, bottom: 15.h),
+            padding: EdgeInsets.only(right: 20.w, bottom: 10.h),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -142,7 +175,7 @@ class BaseScreen extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: () {
-                    // Navigate to status screen
+                    // TODO: Navigate to status page
                   },
                   child: Text(
                     "See all",
@@ -156,10 +189,8 @@ class BaseScreen extends StatelessWidget {
               ],
             ),
           ),
-
-          // Status List
           SizedBox(
-            height: 120.h,
+            height: 140.h,
             child: Obx(() {
               if (statusController.isLoading.value) {
                 return Center(
@@ -193,41 +224,30 @@ class BaseScreen extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (status.isMyStatus) {
-          // Show my status options (view, delete, etc.)
+          // TODO: Navigate to add status
         } else {
-          // View status and mark as viewed
           statusController.markAsViewed(status.id);
         }
       },
       child: Container(
-        width: 70.w,
+        width: 60.w,
         child: Column(
           children: [
-            // Status Avatar with Border
             Container(
               padding: EdgeInsets.all(2.w),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: status.isViewed
-                    ? null
-                    : LinearGradient(
-                  colors: [Colors.purple, Colors.pink, Colors.orange],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                color: status.isViewed ? Colors.white.withOpacity(0.3) : null,
+                color: status.isViewed ? Colors.white.withOpacity(0.9) : Colors.black,
               ),
               child: Stack(
                 children: [
                   CircleAvatar(
-                    radius: 28.r,
+                    radius: 32.r,
                     backgroundColor: Colors.grey[300],
-                    backgroundImage: status.isMyStatus && authController.profileImage.value != null
-                        ? FileImage(authController.profileImage.value!)
+                    // ✅ Use local profile data for "My Status"
+                    backgroundImage: status.isMyStatus
+                        ? _getMyStatusImage()
                         : NetworkImage(status.profileImageUrl) as ImageProvider,
-                    child: status.isMyStatus && authController.profileImage.value == null
-                        ? Icon(Icons.person, color: Colors.white, size: 24.sp)
-                        : null,
                   ),
 
                   // Add Status Icon (for my status)
@@ -245,26 +265,7 @@ class BaseScreen extends StatelessWidget {
                         child: Icon(
                           Icons.add,
                           color: Colors.white,
-                          size: 12.sp,
-                        ),
-                      ),
-                    ),
-
-                  // Status Type Icon
-                  if (!status.isMyStatus && status.statusType == 'video')
-                    Positioned(
-                      top: 2.h,
-                      right: 2.w,
-                      child: Container(
-                        padding: EdgeInsets.all(2.w),
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(4.r),
-                        ),
-                        child: Icon(
-                          Icons.videocam,
-                          color: Colors.white,
-                          size: 10.sp,
+                          size: 8.sp,
                         ),
                       ),
                     ),
@@ -274,7 +275,6 @@ class BaseScreen extends StatelessWidget {
 
             SizedBox(height: 8.h),
 
-            // Status Name with Text Overflow Handling
             Container(
               width: 70.w,
               child: Text(
@@ -295,61 +295,81 @@ class BaseScreen extends StatelessWidget {
     );
   }
 
+  /// Helper to get "My Status" profile image from local data
+  ImageProvider? _getMyStatusImage() {
+    final profile = authController.savedProfile.value;
+    final tempImage = authController.profileImage.value;
+
+    // Priority 1: Temporarily selected image
+    if (tempImage != null) {
+      return FileImage(tempImage);
+    }
+
+    // Priority 2: Local file from saved profile
+    if (profile?.avatarUrl != null && profile!.avatarUrl!.startsWith('file://')) {
+      try {
+        return FileImage(File(profile.avatarUrl!));
+      } catch (e) {
+        print('Error loading local avatar for status: $e');
+      }
+    }
+
+    // Priority 3: Network URL
+    if (profile?.avatarUrl != null &&
+        (profile!.avatarUrl!.startsWith('http') || profile.avatarUrl!.startsWith('https'))) {
+      return NetworkImage(profile.avatarUrl!);
+    }
+
+    return null;
+  }
+
   Widget _buildBottomNavigationBar() {
     return Container(
+      height: 70.h,
       decoration: BoxDecoration(
         color: AppColors.whiteColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: Offset(0, -2),
+      ),
+      child: BottomNavigationBar(
+        currentIndex: currentIndex,
+        onTap: onTabTapped,
+        backgroundColor: AppColors.whiteColor,
+        selectedItemColor: AppColors.blueColor,
+        unselectedItemColor: AppColors.navTextColor,
+        showUnselectedLabels: true,
+        elevation: 0,
+        selectedLabelStyle: TextStyle(
+          fontSize: 12.sp,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: 11.sp,
+          fontWeight: FontWeight.w500,
+        ),
+        selectedIconTheme: IconThemeData(size: 26.sp),
+        unselectedIconTheme: IconThemeData(size: 24.sp),
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.message_rounded),
+            activeIcon: Icon(Icons.message),
+            label: "Messages",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.call_outlined),
+            activeIcon: Icon(Icons.call),
+            label: "Calls",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.contacts_outlined),
+            activeIcon: Icon(Icons.contacts),
+            label: "Contacts",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
+            label: "Settings",
           ),
         ],
-      ),
-      child: SafeArea(
-        child: BottomNavigationBar(
-          currentIndex: currentIndex,
-          onTap: onTabTapped,
-          backgroundColor: Colors.transparent,
-          selectedItemColor: AppColors.blueColor,
-          unselectedItemColor: AppColors.navTextColor,
-          showUnselectedLabels: true,
-          elevation: 0,
-          selectedLabelStyle: TextStyle(
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w600,
-          ),
-          unselectedLabelStyle: TextStyle(
-            fontSize: 11.sp,
-            fontWeight: FontWeight.w500,
-          ),
-          selectedIconTheme: IconThemeData(size: 26.sp),
-          unselectedIconTheme: IconThemeData(size: 24.sp),
-          type: BottomNavigationBarType.fixed,
-          items: [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.message_rounded),
-              activeIcon: Icon(Icons.message),
-              label: "Messages",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.call_outlined),
-              activeIcon: Icon(Icons.call),
-              label: "Calls",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.contacts_outlined),
-              activeIcon: Icon(Icons.contacts),
-              label: "Contacts",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings),
-              label: "Settings",
-            ),
-          ],
-        ),
       ),
     );
   }

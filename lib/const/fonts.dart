@@ -12,4 +12,6 @@ class AppFonts{
   static TextStyle f20=GoogleFonts.dmSans(fontSize: 20.sp,);
   static TextStyle f18=GoogleFonts.dmSans(fontSize: 18.sp,);
   static TextStyle f16=GoogleFonts.dmSans(fontSize: 16.sp,);
+  static TextStyle f14=GoogleFonts.dmSans(fontSize: 14.sp,);
+  static TextStyle f12=GoogleFonts.dmSans(fontSize: 12.sp,);
 }

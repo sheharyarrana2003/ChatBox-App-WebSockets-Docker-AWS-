@@ -3,8 +3,6 @@ import 'package:chatbox_app/Screens/contactScreen.dart';
 import 'package:chatbox_app/Screens/homeScreen.dart';
 import 'package:chatbox_app/Screens/settingsScreen.dart';
 import 'package:flutter/material.dart';
-
-import '../const/colors.dart';
 import 'baseScreen.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -18,9 +16,9 @@ class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
-    Homescreen(),
-    Callsscreen(),
-    ContactScreen(),
+    HomeScreen(),
+    CallsScreen(),
+    ContactsScreen(),
     SettingsScreen()
   ];
   final List<String> _titles = [
